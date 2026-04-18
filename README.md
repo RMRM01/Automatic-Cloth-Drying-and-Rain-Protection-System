@@ -209,7 +209,7 @@ The system automatically forces the rack into the **shelter** under the followin
 
 
 **Assembled Prototype:**
-![Prototype Photo](.\image&video\1771657855220.jpg)
+![Prototype Photo](./image&video/1771657855220.jpg)
 
 ---
 
