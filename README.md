@@ -227,6 +227,4 @@ The system automatically forces the rack into the **shelter** under the followin
 
 This project is open-source and available under the **MIT License**. Feel free to use, modify, and distribute as you wish.
 
-Built with ☀️ and ☔ awareness.#   A u t o m a t i c - C l o t h - D r y i n g - a n d - R a i n - P r o t e c t i o n - S y s t e m 
- 
- 
+Built with ☀️ and ☔ awareness.
