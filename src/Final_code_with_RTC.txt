@@ -1,0 +1,239 @@
+// Include the Stepper library
+#include <Stepper.h>
+#include <Wire.h>     // REQUIRED for I2C communication with hardware RTC (SDA/A4, SCL/A5 on Uno/Nano)
+#include <RTClib.h> 
+
+// ******************* RTC code
+
+// this store the current second since January 1, 2000.
+uint32_t startTimeEpoch; 
+
+// Time need to dry in second
+long timeNeedToDry=240;
+
+// This global variable will hold the number of second , cloths are placed in sun
+long staingAtSun=0;
+
+// Initialize an RTC object for the hardware DS3231 module.
+RTC_DS3231 rtc; 
+
+// * **************** OTHERS CODE ***********
+
+// Define the number of steps per revolution for your motor.
+// 2048 is common for the 28BYJ-48 motor when used with the ULN2003 driver.
+const int stepsPerRevolution = 2048; 
+
+// Define the number of full rotations for each function
+const int ROTATIONS_COUNT = 6;
+
+// Define the pause duration after each rotation (1 second = 1000 milliseconds)
+const int PAUSE_DURATION_MS = 500;
+
+// Initialize the Stepper library with the number of steps per revolution 
+// and the pins connected to the ULN2003 IN1, IN3, IN2, and IN4
+Stepper myStepper(stepsPerRevolution, 8, 10, 9, 11);
+
+//if the cloth is sun drying the value is 1 or 0
+// initially it is always on
+
+bool isSunDrying=1;
+
+// the value under which we will consider the sky is cludy.
+int LDRthreshold=35;
+
+//the value of Rain Sensor above which we will consider it is raining and we have to bring the cloth under shelter.
+int rainSensorthreshold=900;
+
+void setup() {
+  // Set the motor speed (RPM). Higher RPM can skip steps.
+  myStepper.setSpeed(10); 
+
+  // Serial monitor to print and monitor the current situation
+  Serial.begin(9600); 
+
+  //******** SETUP RTC Module *******************
+
+  //check for the RTC module
+  if (!rtc.begin()) {
+    Serial.println("FATAL: Couldn't find RTC. Check wiring (A4/SDA, A5/SCL).");
+    while (1) delay(10); // Halt if the RTC is not found
+  }
+
+  //Check if the RTC has lost power/time
+  if (rtc.lostPower()) {
+    Serial.println("RTC lost power, setting time to the time of compilation!");
+    rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
+  }
+
+  // Setting the starting time for the first time. We considering cloths are outside shelter.
+
+  startTimeEpoch= rtc.now().unixtime();
+
+
+}
+//*****************RTC FUNCTION *********************
+
+bool isDried(){
+
+Serial.println(" from is dried, printing staingAtSun ");
+Serial.println(staingAtSun);
+
+  if(isSunDrying==1){
+    long newTime=rtc.now().unixtime() -  startTimeEpoch; 
+    Serial.println(newTime);
+
+  if(staingAtSun + newTime >= timeNeedToDry){
+    return 1;
+  }
+  else{
+    return 0;
+  }
+  }
+  else{
+  if(staingAtSun >= timeNeedToDry){
+    return 1;
+  }
+  else{
+    return 0;
+  }
+  }
+
+}
+
+void updateStaingAtSun(){
+  // Read the current time and convert it to epoch seconds
+  uint32_t currentTimeEpoch = rtc.now().unixtime();
+
+  // Duration of drying 
+  long durationSeconds = currentTimeEpoch - startTimeEpoch;
+  
+  // updating the staing time 
+  staingAtSun += durationSeconds;
+
+}
+
+void stopTheClock(){
+  if(isSunDrying==0){
+
+    //UPDATE THE TIME
+ updateStaingAtSun();
+  // SET THE starting to 0
+  startTimeEpoch=0;
+
+  Serial.println("Clock is stopped!");
+
+  }
+}
+void startTheClock(){
+  if(isSunDrying==1){
+
+  // SET THE starting to current Time
+  startTimeEpoch=rtc.now().unixtime();
+
+  Serial.println("Clock is started!");
+
+  }
+}
+
+//********************* OTHERS FUNCTION****************************
+
+void rotateClockwise() {
+  Serial.println("Starting 5 rotations Clockwise...");
+  
+  // Loop 5 times (i goes from 1 to 5)
+  for (int i = 1; i <= ROTATIONS_COUNT; i++) {
+    
+    // Print the current rotation number to the serial monitor
+    Serial.print("Rotation #");
+    Serial.print(i);
+    Serial.println(" CW.");
+    
+    // Perform one full rotation (Positive value for clockwise)
+    myStepper.step(stepsPerRevolution); 
+
+    // Pause for 1 second
+    delay(PAUSE_DURATION_MS); 
+  }
+  Serial.println("Clockwise rotation sequence complete.");
+}
+
+
+void rotateAnticlockwise() {
+  Serial.println("Starting 5 rotations Anti-Clockwise...");
+  
+  // Loop 5 times (i goes from 1 to 5)
+  for (int i = 1; i <= ROTATIONS_COUNT; i++) {
+    
+    // Print the current rotation number to the serial monitor
+    Serial.print("Rotation #");
+    Serial.print(i);
+    Serial.println(" ACW.");
+    
+    // Perform one full rotation (Negative value for anti-clockwise)
+    myStepper.step(-stepsPerRevolution); 
+
+    // Pause for 1 second
+    delay(PAUSE_DURATION_MS); 
+  }
+  Serial.println("Anti-Clockwise rotation sequence complete.");
+}
+
+//Read the reading of LDR to find out the intensity of sun
+
+int readLDR(){
+  int ldrReading=analogRead(A2);
+  return ldrReading;
+}
+//Read the reading of Rain Sensor to find out in it Raining ?
+
+int readRainSensor(){
+  int rainSensorReading=analogRead(A0);
+  return rainSensorReading;
+}
+void loop() {
+  
+int ldrReading= readLDR();
+int rainSensorReading=readRainSensor();
+Serial.println("Ldr value check");
+  Serial.print("Reading: ");
+  Serial.print(ldrReading);
+  Serial.print("  LDR threshold : ");
+  Serial.print(LDRthreshold);
+  Serial.println("");
+
+Serial.println("Rain Sensor value check");
+  Serial.print("Reading: ");
+  Serial.print(rainSensorReading);
+  Serial.print("  Rain sensor threshold : ");
+  Serial.print(rainSensorthreshold);
+  Serial.println("");
+
+if(ldrReading <= LDRthreshold || rainSensorReading <= rainSensorthreshold || isDried())  {
+  if(isSunDrying == 1){
+    isSunDrying=0;
+    stopTheClock();
+    Serial.println("Bringing cloth inside *********************");
+    rotateAnticlockwise();
+    
+    delay(2000);
+  }
+ else{
+  Serial.println(" *********************Already in shelter *************");
+ }
+}
+else{
+  Serial.println(" *********************Sunlight Is present *************");
+    if(isSunDrying == 0){
+    isSunDrying=1; 
+    Serial.println(" *********************Sending for Drying *************");
+    rotateClockwise();
+    startTheClock();
+    delay(2000);
+  }
+  else{
+    Serial.println(" *********************Already there *************");
+  }
+}
+
+delay(500);
+}
